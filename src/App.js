@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import Clarifai from 'clarifai';
 import Navigation from './compnents/Navigation/Navigation';
 import Signin from './compnents/Signin/Signin';
 import Register from './compnents/Register/Register';
@@ -31,28 +30,26 @@ const particleOpetions = {
     }
   }
 }
-const app = new Clarifai.App({
-  apiKey: '1c9d7eaac28b4edf9ca21d40f67e712d'
-});
 
+
+const initialState = {
+  input: '',
+  imageUrl: '',
+  box: {},
+  route: 'signin',
+  isSignedIn: false,
+  user: {
+    id: '',
+    name: '',
+    email: '',
+    entries: 0,
+    joined: ''
+  }
+}
 class App extends Component {
   constructor() {
     super();
-    this.state = {
-      input: '',
-      imageUrl: '',
-      box: {},
-      route: 'signin',
-      isSignedIn: false,
-      user: {
-        id: '',
-        name: '',
-        email: '',
-        entries: 0,
-        joined: ''
-
-      }
-    }
+    this.state = initialState;
   }
 
   loadUser = (user) => {
@@ -69,6 +66,7 @@ class App extends Component {
   }
 
   calculateFaceLocation = (data) => {
+    console.log(data);
     const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box;
     const image = document.getElementById('inputimage');
     const width = Number(image.width);
@@ -89,7 +87,7 @@ class App extends Component {
 
   onRouteChange = (route) => {
     if (route === 'signout') {
-      this.setState({ isSignedIn: false });
+      this.setState(initialState);
     }
     else if (route === 'home') {
       this.setState({ isSignedIn: true })
@@ -104,12 +102,18 @@ class App extends Component {
     // https://kottke.org/plus/misc/images/ai-faces-01.jpg
     // https://mymodernmet.com/wp/wp-content/uploads/2019/09/100k-ai-faces-5.jpg
     this.setState({ imageUrl: this.state.input })
-    app.models.predict(
-      Clarifai.FACE_DETECT_MODEL,
-      this.state.input)
+    fetch('https://whispering-spire-30579.herokuapp.com/imageurl', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: this.state.input
+      })
+    })
+      .then(response => response.json())
       .then(response => {
         if (response) {
-          fetch('http://localhost:3000/image', {
+          
+          fetch('https://whispering-spire-30579.herokuapp.com/image', {
             method: 'put',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -121,10 +125,12 @@ class App extends Component {
               console.log('here', count);
               this.setState(Object.assign(this.state.user, { entries: count }))
             })
+            .catch(err => {
+              console.log(err);
+            });
+            this.displayFaceBox(this.calculateFaceLocation(response));
         }
-        this.displayFaceBox(this.calculateFaceLocation(response))
-          .catch(err => console.log(err))
-      });
+      }).catch(err => console.log(err));
   }
   render() {
     const { isSignedIn, imageUrl, route, box } = this.state;
